@@ -39,6 +39,7 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { lang, changeLang, t } = useCustomerI18n();
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [liveBookings, setLiveBookings] = useState<any[]>([]);
@@ -105,6 +106,26 @@ export function Navbar() {
     getUser();
   }, []);
 
+  // Auto-apply Google Translate on mount if a non-English language is saved
+  useEffect(() => {
+    if (lang && lang !== 'en') {
+      const applyTranslation = () => {
+        const gtCombo = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
+        if (gtCombo && gtCombo.value !== lang) {
+          gtCombo.value = lang;
+          gtCombo.dispatchEvent(new Event('change'));
+          setTimeout(() => {
+            const bar = document.querySelector('.skiptranslate') as HTMLElement | null;
+            if (bar) bar.style.display = 'none';
+            document.body.style.top = '0px';
+          }, 500);
+        }
+      };
+      setTimeout(applyTranslation, 1200);
+      setTimeout(applyTranslation, 3000);
+    }
+  }, [lang]);
+
   const handleMarkAllNotificationsRead = () => {
     setUnreadCount(0);
     try {
@@ -129,12 +150,39 @@ export function Navbar() {
     homeLink = '/worker-dashboard';
   }
 
-  const { lang, changeLang, t } = useCustomerI18n();
-
   const switchLanguage = (newLang: CustomerLanguage) => {
     changeLang(newLang);
+
+    // Smooth fade transition during language switch
+    document.body.style.transition = 'opacity 0.25s ease';
+    document.body.style.opacity = '0.6';
+
+    // Set cookies for Google Translate
     document.cookie = `googtrans=/en/${newLang}; path=/`;
     document.cookie = `googtrans=/en/${newLang}; path=/; domain=${window.location.hostname}`;
+
+    // Programmatically trigger Google Translate via its hidden <select>
+    const gtCombo = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
+    if (gtCombo) {
+      gtCombo.value = newLang;
+      gtCombo.dispatchEvent(new Event('change'));
+      // Restore opacity after translation settles
+      setTimeout(() => {
+        document.body.style.opacity = '1';
+      }, 400);
+    } else {
+      // Google Translate widget not loaded yet — reload to apply cookie
+      window.location.reload();
+    }
+
+    // Hide the Google Translate toolbar if it appears
+    setTimeout(() => {
+      const bar = document.querySelector('.skiptranslate') as HTMLElement | null;
+      if (bar) {
+        bar.style.display = 'none';
+      }
+      document.body.style.top = '0px';
+    }, 500);
   };
 
   const navLinks: Array<{
