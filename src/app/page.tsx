@@ -64,8 +64,40 @@ export default function LandingPage() {
     }
     checkAuth();
 
+    // Read saved language preference
+    const saved = (() => {
+      try { return localStorage.getItem('shramnexus-lang'); } catch { return null; }
+    })();
     const match = document.cookie.match(/googtrans=\/en\/([a-z]{2})/);
-    if (match) setLang(match[1]);
+    const initialLang = saved || (match ? match[1] : null) || 'en';
+    setLang(initialLang);
+
+    // If a non-English language was saved, trigger Google Translate once the widget loads
+    if (initialLang !== 'en') {
+      const applyTranslation = () => {
+        const gtCombo = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
+        if (gtCombo) {
+          gtCombo.value = initialLang;
+          gtCombo.dispatchEvent(new Event('change'));
+          // Hide the Google Translate toolbar
+          setTimeout(() => {
+            const bar = document.querySelector('.skiptranslate') as HTMLElement | null;
+            if (bar) bar.style.display = 'none';
+            document.body.style.top = '0px';
+          }, 500);
+        }
+      };
+      // Try immediately, then retry after a short delay (widget may still be loading)
+      setTimeout(applyTranslation, 1000);
+      setTimeout(applyTranslation, 2500);
+    }
+
+    // Always hide the GT toolbar on mount if present
+    setTimeout(() => {
+      const bar = document.querySelector('.skiptranslate') as HTMLElement | null;
+      if (bar) bar.style.display = 'none';
+      document.body.style.top = '0px';
+    }, 2000);
   }, []);
 
   // When logged in as a customer, render the rich Customer Dashboard & Service Discovery Experience
@@ -100,7 +132,43 @@ export default function LandingPage() {
           <a href="#support" data-i18n="nav_support" onClick={() => setIsNavOpen(false)}>Help &amp; Support</a>
         </div>
         <div className="nav-actions">
-          <select id="nav-language-select" aria-label="Choose language" defaultValue="en">
+          <select
+            id="nav-language-select"
+            aria-label="Choose language"
+            value={lang}
+            onChange={(e) => {
+              const newLang = e.target.value;
+              setLang(newLang);
+
+              // Smooth fade transition
+              document.body.style.transition = 'opacity 0.25s ease';
+              document.body.style.opacity = '0.6';
+
+              // Set cookies for Google Translate
+              document.cookie = `googtrans=/en/${newLang}; path=/`;
+              document.cookie = `googtrans=/en/${newLang}; path=/; domain=${window.location.hostname}`;
+
+              // Save preference
+              try { localStorage.setItem('shramnexus-lang', newLang); } catch (err) {}
+
+              // Trigger Google Translate
+              const gtCombo = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
+              if (gtCombo) {
+                gtCombo.value = newLang;
+                gtCombo.dispatchEvent(new Event('change'));
+                setTimeout(() => { document.body.style.opacity = '1'; }, 400);
+              } else {
+                window.location.reload();
+              }
+
+              // Hide Google Translate toolbar
+              setTimeout(() => {
+                const bar = document.querySelector('.skiptranslate') as HTMLElement | null;
+                if (bar) bar.style.display = 'none';
+                document.body.style.top = '0px';
+              }, 500);
+            }}
+          >
             <option value="en">EN</option>
             <option value="hi">हिंदी</option>
             <option value="bn">বাংলা</option>

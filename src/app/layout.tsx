@@ -55,6 +55,7 @@ export default function RootLayout({
           {children}
         </NavigationWrapper>
         <FloatingAIAssistant />
+        <div id="google_translate_element" style={{ display: 'none', position: 'absolute' }}></div>
         <Toaster />
         <Script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" strategy="afterInteractive" />
       </body>
